@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title></title>
+  <link rel="stylesheet" type="text/css" href="./source/reset.css" />
+  <link rel="stylesheet" type="text/css" href="./source/style.css" />
+  <script src="./source/qrcode.min.js"></script>
+  <script src="./source/vue.global.prod.js"></script>
+</head>
+
+<body>
+  <div id="app">
+    <div class="detail">
+      <!-- <button class="more-ver" @click="goHome">&gt; 更多版本</button> -->
+      <div class="main-wrapper">
+        <div id="qrcode"></div>
+        <p class="name">{{ ver_info.app_name }}</p>
+        <p class="ver-name">{{ detail.pack_name }}</p>
+        <div class="ver-item">
+          <span>当前版本：</span>
+          <span>{{ version }} ({{ detail.build_version }})</span>
+        </div>
+        <div class="ver-item">
+          <span>文件大小：</span>
+          <span>{{ detail.ipa_size }}</span>
+        </div>
+        <div class="ver-item">
+          <span>构建方案：</span>
+          <span>{{ detail.scheme_name }}</span>
+        </div>
+        <div class="ver-item">
+          <span>构建途径：</span>
+          <span>{{ detail.build_conf }}</span>
+        </div>
+        <div class="ver-item">
+          <span>应用签名：</span>
+          <span>{{ detail.bundle_id }}</span>
+        </div>
+        <div class="ver-item">
+          <span>构建节点：</span>
+          <span>{{ detail.git_branch }}({{ detail.git_commit_id }})</span>
+        </div>
+        <div class="ver-item">
+          <span>构建时间：</span>
+          <span>{{ detail.build_time }}</span>
+        </div>
+        <div class="ver-item">
+          <span>构建主机：</span>
+          <span>{{ detail.build_host_name }}</span>
+        </div>
+        <a :href="detail.install_link" class="install-link">
+          <button class="install-btn">点击安装</button>
+        </a>
+        <button class="more" @click="goHome">更多版本</button>
+      </div>
+      <div class="update-wrapper">
+        <p class="title">更新内容</p>
+        <ul class="update">
+          <li v-for="(item, index) in detail.updates" :key="index">{{ index + 1 }}. {{ item }}</li>
+        </ul>
+      </div>
+      <div style="border: 1px solid #eee"></div>
+      <div class="addition-wrapper">
+        <a class="addtion-item" :href="ver_info.ssl" download>安装SSL证书</a>
+        <a class="addtion-item" :href="detail.download_link" download>下载IPA文件</a>
+        <a class="addtion-item" :href="detail.dsym_download_link" download>下载符号表</a>
+      </div>
+      <div style="border: 1px solid #eee"></div>
+    </div>
+  </div>
+  <script>
+    const app = {
+
+      setup() {
+        const data = Vue.reactive({
+          ver_info: {},
+          detail: {}
+        })
+        function goHome() {
+          window.location.href = './index.html'
+        }
+        let param = window.location.search.split('=')[1] || false
+
+        var url = location.search;  
+        var theRequest = new Object();
+        let appversion = "";
+        if (url.indexOf("?") != -1) {
+          var str = url.substr(1);  
+          var strs = str.split("&");
+          appversion = strs[1]
+        }
+        
+        let params = appversion.split('=')
+
+        let appver = params[1]
+
+        let a = param.split('&')
+
+        param = a[0]
+
+        if (!param) {
+          goHome()
+        } else {
+          param = param + '.ipa'
+        }
+        let qrcode
+        Vue.onMounted(() => {
+          qrcode = new QRCode('qrcode', {
+            text: window.location.href
+          })
+        })
+        Vue.onUnmounted(() => {
+          qrcode._el.innerHTML = ''
+        })
+        const JSON_PREV = './Records'
+        // ATON_0.15.0_20210113_113031_Release_DEV.ipa
+        let filetitle = param.split('_')
+        let name = filetitle[0]
+        version = appver
+        fetch(`${JSON_PREV}/Build_records_${version}.json`, { cache: "no-cache" })
+          .then(response => response.json())
+          .then(res => {
+            data.ver_info = res
+            res.build_list.some(item => {
+              if (item.pack_name === param) {
+                data.detail = item
+                return true
+              }
+              return false
+            })
+          })
+        return { ...Vue.toRefs(data), name, version, goHome }
+      }
+    }
+    Vue.createApp(app).mount('#app')
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title></title>
+  <link rel="stylesheet" type="text/css" href="./source/reset.css" />
+  <link rel="stylesheet" type="text/css" href="./source/style.css" />
+  <script src="./source/vue.global.prod.js"></script>
+</head>
+
+<body>
+  <div id="app">
+    <div class="home">
+      <h3 class="title">历史版本</h3>
+      <div class="filter-wrapper">
+        <select class="fil-ver" v-model="filter.ver">
+          <option value="" disabled selected>版本号</option>
+          <option value="">全部</option>
+          <option v-for="item in filter.versions" :key="item" :value="item">{{ item }}</option>
+        </select>
+        <select class="fil-scheme" v-model="filter.scheme">
+          <option value="" disabled selected>构建类型</option>
+          <option value="">全部</option>
+          <option v-for="item in filter.schemes" :key="item" :value="item">{{ item }}</option>
+        </select>
+      </div>
+      <ul>
+        <li v-for="(item, key) in list" :key="key" class="version-li">
+          <p class="li-name" @click="handleCVersion(item.pack_name,item.version)">{{ item.pack_name }}</p>
+          <p class="li-ver">&nbsp;</p>
+          <div class="li-updates">
+            <p class="text" v-for="(ins, index) in item.updates" :key="index">{{ index + 1 }}. {{ ins }}</p>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </div>
+  <script>
+    const app = {
+      setup() {
+        const data = Vue.reactive({
+          filter: {
+            ver: '',
+            versions: [],
+            scheme: '',
+            schemes: new Set()
+          },
+          list_all: []
+        })
+        const versionMap = {}
+        const JSON_PREV = './Records'
+        function sortByTime(a, b) {
+          if (a.build_time === b.build_time) {
+            return 0
+          } else if (a.build_time > b.build_time) {
+            return -1
+          }
+          return 1
+        }
+        function getDetail(key, path) {
+          fetch(`${JSON_PREV}/${path}`, { cache: "no-cache" })
+            .then(response => response.json())
+            .then((res) => {
+              if (!res.build_list || !res.build_list.length) {
+                return
+              }
+              data.filter.versions.push(key)
+              data.filter.versions.sort((a, b) => {
+                if (a === b) {
+                  return 0
+                } else if (a > b) {
+                  return -1
+                }
+                return 1
+              })
+              versionMap[key] = res.build_list.sort(sortByTime)
+              res.build_list.map(item => {
+                data.list_all.push(item)
+                data.filter.schemes.add(item.scheme_name)
+              })
+              data.list_all.sort(sortByTime)
+            })
+            .catch(err => {
+              console.log('err: ', err)
+            })
+        }
+        fetch(JSON_PREV + '/History_versions.json', { cache: "no-cache" })
+          .then(response => response.json())
+          .then(res => {
+            for (const key in res.version_list) {
+              const ins = res.version_list[key]
+              getDetail(key, ins.json_path)
+            }
+          })
+
+        function handleCVersion(param, version) {
+          window.location.href = './detail.html?ver=' + param.slice(0, -4) + '&appverion=' + version
+        }
+        const list = Vue.computed(() => {
+          let result = data.filter.ver ? versionMap[data.filter.ver] : data.list_all
+          if (data.filter.scheme) {
+            result = result.filter(item => item.scheme_name === data.filter.scheme)
+          }
+          return result
+        })
+        return { ...Vue.toRefs(data), handleCVersion, list }
+      }
+    }
+    Vue.createApp(app).mount('#app')
+  </script>
+</body>
+
+</html>
